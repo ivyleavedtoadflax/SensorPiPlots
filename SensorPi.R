@@ -37,38 +37,56 @@ expect_match(argv[1],perl=TRUE,"\\d{4}\\-\\d{2}\\-\\d{2}(\\ \\d{2}\\:\\d{2}\\:\\
 
 
 SensorPiB_sql <- src_sqlite("~/Dropbox/Apps/SensorPi/SensorPiB.db")
+Log_sql <- src_sqlite("~/Dropbox/Apps/SensorPi/Log.db")
+
 
 SensorPiB <- tbl(
   SensorPiB_sql,
-  sql(paste(
-    "select * from SensorPiB where timestamp > ",
-    argv[1],
-    sep = ""
-  )
+  sql(
+    paste(
+      "select * from SensorPiB where timestamp > '",
+      argv[1],
+      "'",
+      sep = ""
+    )
   )
 ) %>% 
   collect
+
+Log <- tbl(
+  Log_sql,
+  sql(
+    paste(
+      "select * from temp where timsetamp > '",
+      argv[1],
+      "'",
+      sep = ""
+    )
+  )
+) %>% 
+  collect
+
 
 p <- SensorPiB %>% 
   dplyr::mutate(
     timestamp = ymd_hms(timestamp), 
     light = log(light)*-1
-    ) %>% 
+  ) %>% 
   gather(
     variable, 
     value, 
     temp1:humidity
-    ) %>% 
+  ) %>% 
   dplyr::mutate(
     variable1 = ifelse(grepl("temp",variable),"temp",variable)
-    ) %>%
+  ) %>%
   ggplot(
     aes(
       x = timestamp, 
       y = value, 
       colour = variable 
-      )
-    )+
+    )
+  )+
   geom_path()+
   facet_wrap(
     ~variable1,
@@ -76,7 +94,7 @@ p <- SensorPiB %>%
     ncol = 1)+
   theme(
     legend.position = "right"
-    ) +
+  ) +
   scale_colour_discrete(
     labels = c(
       "Internal temperature",
@@ -84,11 +102,11 @@ p <- SensorPiB %>%
       "Internal temperature 2",
       "Light (relative values)",
       "Relative humidity"
-      )
-    )+
+    )
+  )+
   xlab(
     "Timestamp"
-    )
+  )
 
 facet_labels <- c(
   expression(Light~(relative~values)),
@@ -105,76 +123,61 @@ p1 <- facet_wrap_labeller(
 pdf("sensorpib.pdf",width=8,height=10)
 p1
 dev.off()
-```
 
-
-
-
-Log_sql <- src_sqlite("~/Dropbox/Apps/SensorPi/Log.db")
-
-Log <- tbl(
-  Log_sql,sql(
-    "select * from temp where timsetamp > '2014-12-24'")
-  ) %>% 
-  collect
 
 
 p <- Log %>% 
   dplyr::mutate(
-    timestamp = ymd_hms(timsetamp),
+    timestamp = ymd_hms(timsetamp), 
     light = log(light)*-1
-    ) %>% 
+  ) %>% 
   gather(
     variable, 
     value, 
     temp1:humidity
-    ) %>% 
+  ) %>% 
   dplyr::mutate(
     variable1 = ifelse(grepl("temp",variable),"temp",variable)
-    ) %>%
+  ) %>%
   ggplot(
     aes(
       x = timestamp, 
       y = value, 
       colour = variable 
-      )
-    )+
-  geom_path(
-    lwd = 0.5
-    )+
+    )
+  )+
+  geom_path()+
   facet_wrap(
     ~variable1,
     scales = "free",
     ncol = 1)+
   theme(
     legend.position = "right"
-    )+
+  ) +
   scale_colour_discrete(
     labels = c(
       "Internal temperature",
+      "External temperature",
       "Internal temperature 2",
       "Light (relative values)",
       "Relative humidity"
-      )
-    )+
+    )
+  )+
   xlab(
     "Timestamp"
-    )
+  )
 
 facet_labels <- c(
   expression(Light~(relative~values)),
   expression(Internal~relative~humidity~(percent)),
-  expression(Internal~temperature~(~degree~C))
-  
-  )
-  
+  expression(Temperature~(~degree~C))  
+)
+
 p1 <- facet_wrap_labeller(
   p,
   facet_labels
-  )
+)
 
-
-pdf("temp.pdf",width=8,height=10)
+pdf("log.pdf",width=8,height=10)
 p1
 dev.off()
-
