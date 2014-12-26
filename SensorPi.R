@@ -9,6 +9,29 @@ require(testthat)
 
 argv <- commandArgs(trailingOnly = TRUE)
 
+# Test arguments
+
+regex <- "\\d{4}(\\-[0-1][0-9])?(\\-\\d{2})?(\\ \\d{2})?(\\:\\d{2})?(\\:\\d{2})?"
+
+test_that(
+  "First argument present and properly formatted",
+  #"Arguments are properly formatted as 'YYYY-MM-DD', optionally 'YYYY-MM-DD HH:MM:SS'.",
+{
+  expect_true(argv %>% length %in% c(1,2))
+  expect_match(argv[1],perl=TRUE,regex)
+}
+)
+
+if (!is.na(argv[2])) {
+  test_that(
+    "Second date argument properly formatted",
+    #"Arguments are properly formatted as 'YYYY-MM-DD', optionally 'YYYY-MM-DD HH:MM:SS'.",
+{
+  expect_match(argv[2],perl=TRUE,regex)
+}
+  )
+}
+
 # Define facet wrap labelling function to name to boxes of each facet
 
 facet_wrap_labeller <- function(gg.plot,labels=NULL) {
@@ -20,9 +43,18 @@ facet_wrap_labeller <- function(gg.plot,labels=NULL) {
   strips <- grep("strip_t", names(gg))
   
   for(ii in seq_along(labels))  {
-    modgrob <- getGrob(gg[[strips[ii]]], "strip.text", 
-                       grep=TRUE, global=TRUE)
-    gg[[strips[ii]]]$children[[modgrob$name]] <- editGrob(modgrob,label=labels[ii])
+    
+    modgrob <- getGrob(
+      gg[[strips[ii]]], 
+      "strip.text", 
+      grep = TRUE, 
+      global = TRUE
+      )
+    
+    gg[[strips[ii]]]$children[[modgrob$name]] <- editGrob(
+      modgrob, 
+      label = labels[ii]
+      )
   }
   
   g$grobs <- gg
@@ -30,44 +62,63 @@ facet_wrap_labeller <- function(gg.plot,labels=NULL) {
   g
 }
 
-test_that(
-  "Arguments are properly formatted as 'YYYY-MM-DD', optionally 'YYYY-MM-DD HH:MM:SS'.",
-expect_match(argv[1],perl=TRUE,"\\d{4}\\-\\d{2}\\-\\d{2}(\\ \\d{2}\\:\\d{2}\\:\\d{2})?")
-)
-
 
 SensorPiB_sql <- src_sqlite("~/Dropbox/Apps/SensorPi/SensorPiB.db")
 Log_sql <- src_sqlite("~/Dropbox/Apps/SensorPi/Log.db")
 
+# Function to create sql queries from arguments
+
+date_query <- function(tab_name,col_name) {
+  
+  ifelse(
+    (argv %>% length > 1),
+    sql_out <- sql(
+      paste(
+        "select * from ",
+        tab_name,
+        " where ",
+        col_name,
+        " > '",
+        argv[1],
+        "' and ",
+        col_name,
+        " < '",
+        argv[2],
+        "'",
+        sep = ""
+      )
+    ),
+    sql_out <- sql(
+      paste(
+        "select * from ",
+        tab_name,
+        " where ",
+        col_name,
+        " > '",
+        argv[1],
+        "'",
+        sep = ""
+      )
+    )
+  )
+  
+  return(sql_out)
+  
+}
 
 SensorPiB <- tbl(
   SensorPiB_sql,
-  sql(
-    paste(
-      "select * from SensorPiB where timestamp > '",
-      argv[1],
-      "'",
-      sep = ""
-    )
-  )
+  date_query("SensorPiB","timestamp")
 ) %>% 
   collect
 
 Log <- tbl(
   Log_sql,
-  sql(
-    paste(
-      "select * from temp where timsetamp > '",
-      argv[1],
-      "'",
-      sep = ""
-    )
-  )
+  date_query("temp","timsetamp")
 ) %>% 
   collect
 
-
-p <- SensorPiB %>% 
+p <- SensorPiB  %>%
   dplyr::mutate(
     timestamp = ymd_hms(timestamp), 
     light = log(light)*-1
@@ -76,9 +127,10 @@ p <- SensorPiB %>%
     variable, 
     value, 
     temp1:humidity
-  ) %>% 
+  ) %>%
   dplyr::mutate(
-    variable1 = ifelse(grepl("temp",variable),"temp",variable)
+    variable1 = ifelse(grepl("temp",variable),"temp",variable),
+    value = ifelse(grepl("temp",variable) & value > 40,NA,value)
   ) %>%
   ggplot(
     aes(
