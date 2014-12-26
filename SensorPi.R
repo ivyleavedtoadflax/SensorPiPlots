@@ -106,6 +106,7 @@ date_query <- function(tab_name,col_name) {
   
 }
 
+
 SensorPiB <- tbl(
   SensorPiB_sql,
   date_query("SensorPiB","timestamp")
@@ -116,7 +117,56 @@ Log <- tbl(
   Log_sql,
   date_query("temp","timsetamp")
 ) %>% 
+  dplyr::rename(timestamp = timsetamp) %>%
   collect
+
+
+plot_temp <- function(dataframe) {
+
+p <- dataframe  %>%
+  dplyr::mutate(
+    timestamp = ymd_hms(timestamp), 
+    light = log(light)*-1
+  ) %>% 
+  gather(
+    variable, 
+    value, 
+    temp1:humidity
+  ) %>%
+  dplyr::mutate(
+    variable1 = ifelse(grepl("temp",variable),"temp",variable),
+    value = ifelse(grepl("temp",variable) & value > 40,NA,value)
+  ) %>%
+  ggplot(
+    aes(
+      x = timestamp, 
+      y = value, 
+      colour = variable 
+    )
+  )+
+  geom_path()+
+  facet_wrap(
+    ~variable1,
+    scales = "free",
+    ncol = 1)+
+  theme(
+    legend.position = "right"
+  ) +
+  scale_colour_discrete(
+    labels = c(
+      "Internal temperature",
+      "External temperature",
+      "Internal temperature 2",
+      "Light (relative values)",
+      "Relative humidity"
+    )
+  )+
+  xlab(
+    "Timestamp"
+  )
+
+}
+
 
 p <- SensorPiB  %>%
   dplyr::mutate(
