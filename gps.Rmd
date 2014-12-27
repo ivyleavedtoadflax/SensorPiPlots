@@ -1,0 +1,114 @@
+---
+title: "Untitled"
+author: "Matthew Upson"
+date: "24/12/2014"
+output: html_document
+---
+
+```{r}
+
+require(dplyr)
+require(magrittr)
+require(tidyr)
+require(lubridate)
+require(ggplot2)
+require(ggmap)
+
+source("facet_wrap_labeller.R")
+
+```
+
+```{r}
+
+SensorPiB_sql <- src_sqlite("~/Dropbox/Apps/SensorPi/SensorPiB.db")
+
+SensorPiB <- tbl(
+  SensorPiB_sql,
+  sql("select * from gps")
+  ) %>% 
+  collect %>%
+  dplyr::mutate(
+    time = ymd_hms(time)
+    )
+
+ggplot(
+  SensorPiB,
+  aes(
+    x = time,
+    y = lat
+    )
+  )+
+  geom_path()+
+  scale_y_continuous(
+    limits = c(52.0075,52.00825)
+    )
+
+
+centre <- SensorPiB %>%
+  dplyr::filter(
+    lat < quantile(lat,0.75),
+    lat > quantile(lat,0.25),
+    lon < quantile(lon,0.75),
+    lon > quantile(lon,0.25)
+    ) %>%
+  dplyr::summarise(
+    lat = median(lat),
+    lon = median(lon)
+    )
+
+
+
+
+nymap_12 <- get_map(
+     centre, 
+     scale = 2,
+     zoom = 18,
+     source = "google",
+     maptype = "satellite"
+)
+
+ggmap(
+     nymap_12, 
+     extent = 'device',
+     legend="bottomright"
+) + 
+ geom_point(
+   data = SensorPiB,
+   aes(
+     x = lon,
+     y = lat
+     ),
+   colour = "red",
+   alpha = 0.5
+   )+
+  geom_point(
+    data = centre,
+    aes(
+      x = lon,
+      y = lat
+      ),
+    col = "white",
+    size = 4
+    )+
+  geom_point(
+    data = centre,
+    aes(
+      x = lon,
+      y = lat
+      ),
+    size = 4,
+    pch = 1
+    )+
+  geom_point(
+    data = centre,
+    aes(
+      x = lon,
+      y = lat
+      ),
+    size = 2
+    )
+
+
+
+
+```
