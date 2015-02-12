@@ -1,0 +1,176 @@
+---
+title: "Untitled"
+author: "Matthew Upson"
+date: "24/12/2014"
+output: html_document
+---
+
+```{r,echo=FALSE}
+knitr::opts_chunk$set(cache=FALSE,echo=FALSE,message=FALSE,warning=FALSE)
+```
+
+```{r}
+
+
+require(dplyr)
+require(magrittr)
+require(tidyr)
+require(lubridate)
+require(ggplot2)
+require(ggmap)
+require(tidyr)
+
+
+#source("facet_wrap_labeller.R")
+source("server_cred.R")
+
+```
+
+```{r,fig.width=8,fig.height=8}
+
+SensorPiB_sql <- src_postgres(
+  dbname = cred.dbname,
+  host = cred.host,
+  user = cred.user,
+  password = cred.password
+  )
+
+#  SensorPiB <- tbl(
+#    SensorPiB_sql,
+#   sql("select * from elec where timestamp > '2015-02-12 00:00:00'")
+#    ) %>% collect
+
+SensorPiB <- tbl(
+ SensorPiB_sql,
+ sql("select * from elec where timestamp > '2015-02-12 00:00:00'")
+ ) %>% 
+  collect %>%
+  dplyr::mutate(
+    timestamp = ymd_hms(timestamp),
+    hour = hour(timestamp),
+    hour_min = format(timestamp, "%H:%M"),
+    tarif = ifelse(
+      hour %in% 0:7, 
+      "night",
+      "day"
+      )
+    ) %>%
+  dplyr::arrange(timestamp)
+
+SensorPiB %>%
+  dplyr::group_by(
+    tarif,hour
+    ) %>%
+  dplyr::summarise(
+    value = median(value)
+    ) %>% ggplot(
+      aes(
+        x = hour,
+        y = value,
+        fill = tarif
+        )
+      ) +
+  geom_bar(
+    stat = "identity"
+    )
+
+SensorPiB$tarif <- ifelse(
+  SensorPiB$hour_min > "23:45",
+  "night",
+  "day"
+  )
+
+# SensorPiB %>%
+#   dplyr::group_by(
+#     tarif
+#     ) %>%
+#   dplyr::summarise(
+#     value = median(value)
+#     ) %>% ggplot(
+#       aes(
+#         x = tarif,
+#         y = value
+#         fill = tarif
+#         )
+#       ) +
+#   geom_bar(
+#     stat = "identity"
+#     )
+
+
+```
+
+```{r,eval=FALSE}
+SensorPiB %>%
+  gather(
+    variable,value,day:value
+    ) %>%
+  dplyr::mutate(
+    timestamp = ymd_hms(timestamp)
+    ) %>%
+  ggplot(
+    aes(
+      x = timestamp, 
+      y = value, 
+      colour = variable 
+      )
+    )+
+  geom_path()+
+  facet_wrap(
+    ~variable,
+    scales = "free",
+    ncol = 1)+
+  theme(
+    legend.position = "right"
+    ) 
+```
+
+
+```{r}
+
+SensorPiB %>%
+  dplyr::mutate(
+    timestamp = ymd_hms(timestamp)
+    )  %>%
+  ggplot(
+    aes(
+      x = timestamp, 
+      y = value
+      )
+    )+
+  geom_path()+
+  theme(
+    legend.position = "right"
+    ) 
+
+```
+
+
+```{r}
+
+SensorPiB %>%
+  dplyr::mutate(
+    timestamp = ymd_hms(timestamp)
+    )  %>%
+  dplyr::filter(
+    value < 1.0,
+    hour(timestamp) %in% c(20:23)
+    )  %>%
+dplyr::mutate(
+    pulse = ifelse(value > 0.15,TRUE,FALSE),
+    cumsum = cumsum(value)
+  ) %>%
+  dplyr::filter(
+    pulse == TRUE
+    ) %>%
+  dplyr::mutate(
+    time_diff = timestamp - lag(timestamp,1)
+    ) %>%
+  dplyr::filter(
+    time_diff > 2,
+    time_diff < 1000
+    ) -> bla
+
+bla
+
+```

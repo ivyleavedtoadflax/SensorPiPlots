@@ -6,6 +6,9 @@ require(lubridate)
 require(ggplot2)
 require(testthat)
 #require(ggmap)
+require(RPostgreSQL)
+source("server_cred.R")
+
 
 argv <- commandArgs(trailingOnly = TRUE)
 
@@ -189,7 +192,8 @@ p <- Log %>%
     temp1:humidity
   ) %>% 
   dplyr::mutate(
-    variable1 = ifelse(grepl("temp",variable),"temp",variable)
+    variable1 = ifelse(grepl("temp",variable),"temp",variable),
+    value = ifelse(grepl("temp",variable) & value > 100,NA,value)
   ) %>%
   ggplot(
     aes(

@@ -2,7 +2,7 @@
 title: "Untitled"
 author: "Matthew Upson"
 date: "24/12/2014"
-output: html_document
+output: pdf_document
 ---
 
 ```{r}
@@ -13,14 +13,26 @@ require(tidyr)
 require(lubridate)
 require(ggplot2)
 require(ggmap)
+require(RPostgreSQL)
+
 
 source("facet_wrap_labeller.R")
-
+source("server_cred.R")
 ```
 
 ```{r}
-
+  
 SensorPiB_sql <- src_sqlite("~/Dropbox/Apps/SensorPi/SensorPiB.db")
+
+SensorPiB_sqla <- src_postgres(
+  dbname = cred.dbname,
+  host = cred.host,
+  user = cred.user,
+  password = cred.password
+  )
+
+
+
 
 SensorPiB <- tbl(
   SensorPiB_sql,
@@ -57,10 +69,8 @@ centre <- SensorPiB %>%
     )
 
 
-
-
 nymap_12 <- get_map(
-     centre, 
+     c(lon=centre$lon,lat=centre$lat), 
      scale = 2,
      zoom = 18,
      source = "google",
@@ -106,6 +116,28 @@ ggmap(
       y = lat
       ),
     size = 2
+    )
+
+ggmap(
+     nymap_12, 
+     extent = 'device',
+     legend="bottomright"
+) +
+  geom_hline(
+    data = centre,
+    aes(
+      yintercept = lat
+      ),
+    col = "white",
+    size = 0.5
+    )+
+  geom_vline(
+    data = centre,
+    aes(
+      xintercept = lon
+      ),
+    col = "white",
+    size = 0.5
     )
 
 

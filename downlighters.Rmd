@@ -1,0 +1,136 @@
+
+```{r}
+require(dplyr)
+require(magrittr)
+require(tidyr)
+require(lubridate)
+require(ggplot2)
+require(RPostgreSQL)
+source("server_cred.R")
+```
+
+```{r}
+# Define facet wrap labelling function to name to boxes of each facet
+
+facet_wrap_labeller <- function(gg.plot, labels = NULL) {
+  #works with R 3.0.1 and ggplot2 0.9.3.1
+  require(gridExtra)
+  
+  g <- ggplotGrob(gg.plot)
+  gg <- g$grobs      
+  strips <- grep("strip_t", names(gg))
+  
+  for(ii in seq_along(labels))  {
+    
+    modgrob <- getGrob(
+      gg[[strips[ii]]], 
+      "strip.text", 
+      grep = TRUE, 
+      global = TRUE
+      )
+    
+    gg[[strips[ii]]]$children[[modgrob$name]] <- editGrob(
+      modgrob, 
+      label = labels[ii]
+      )
+  }
+  
+  g$grobs <- gg
+  class(g) = c("arrange", "ggplot",class(g)) 
+  g
+}
+
+
+SensorPiB_sql <- src_postgres(
+  dbname = cred.dbname,
+  host = cred.host,
+  user = cred.user,
+  password = cred.password
+  )
+
+```
+# Function to create sql queries from arguments
+
+
+```{r}
+date_query <- function(tab_name,col_name,datefrom,dateto) {
+  
+  sql_out <- sql(
+    paste(
+      "select * from ",
+      tab_name,
+      " where ",
+      col_name,
+      " > '",
+      datefrom,
+      "' and ",
+      col_name,
+      " < '",
+      dateto,
+      "'",
+      sep = ""
+      )
+    )
+    
+    return(sql_out)
+    }
+
+```
+
+
+```{r}
+
+SensorPiB <- tbl(
+  SensorPiB_sql,
+  date_query("sensorpi","timestamp","2015-01-12 12:10:00","2015-01-16 20:00:00")
+  ) %>% 
+  collect
+
+int_light1 <- SensorPiB %>%
+  dplyr::filter(
+    rpi == "SensorPiA"
+    ) %>%
+  dplyr::mutate(
+    light_tm1 = lead(int_light),
+    light_diff = int_light - light_tm1
+    ) 
+
+bla <- SensorPiB %>%
+  dplyr::filter(
+    rpi == "SensorPiA"
+    ) %>%
+  dplyr::mutate(
+    off_diff = (int_light - lead(int_light,1)),
+    on_diff = (int_light - lag(int_light,1)),
+    off = ifelse(off_diff > 950,1,0),
+    on = ifelse(on_diff > 800,1,0)
+    )
+
+bla_off <- bla %>% dplyr::filter(
+      off == 1
+      ) %>%
+  dplyr::filter(
+    on != 1
+    )
+  
+
+bla_on <- bla %>% dplyr::filter(
+      on == 1
+      ) %>%
+  dplyr::filter(
+    off != 1
+    )
+
+
+
+
+plot(bla$timestamp,bla$int_temp1,type = "l",xlab = "Timestamp",ylab= expression(Temperature~(~degree~C)))
+abline(v=bla_on$timestamp,col="red")
+abline(v=bla_off$timestamp,col="green")
+
+
+
+
+
+
+```
