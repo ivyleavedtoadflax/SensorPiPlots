@@ -209,11 +209,13 @@ p <- SensorPiB %>% ggplot(
   )+
   xlab(
     "Timestamp"
-  )+
-  geom_smooth(
-    data = subset(SensorPiB, variable =="value"),
-    col = "red"
   )
+
+#+
+#  geom_smooth(
+#    data = subset(SensorPiB, variable =="value"),
+#    col = "red"
+#  )
 
 facet_labels <- c(
   expression(Light~(relative~values)),

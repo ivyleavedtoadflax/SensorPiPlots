@@ -2,7 +2,7 @@
 title: "Untitled"
 author: "Matthew Upson"
 date: "24/12/2014"
-output: html_document
+output: pdf_document
 ---
 
 ```{r,echo=FALSE}
