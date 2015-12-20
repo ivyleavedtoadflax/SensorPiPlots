@@ -1,4 +1,4 @@
-
+#!/usr/bin/Rscript
 require(dplyr)
 require(magrittr)
 require(tidyr)
@@ -29,10 +29,11 @@ test_that(
 
 if (!is.na(argv[2])) {
   test_that(
-    "Second date argument properly formatted",
+    "Second date argument properly formatted and chronologically after first date",
     #"Arguments are properly formatted as 'YYYY-MM-DD', optionally 'YYYY-MM-DD HH:MM:SS'.",
 {
   expect_match(argv[2], perl = TRUE, regex)
+  expect_true(as.Date(argv[1]) <= as.Date(argv[2]))
 }
   )
 }
@@ -80,7 +81,7 @@ SensorPiB_sql <- src_postgres(
 date_query <- function(tab_name,col_name) {
   
   ifelse(
-    (argv %>% length > 2),
+    (argv %>% length > 1),
     sql_out <- sql(
       paste(
         "select * from ",
@@ -220,7 +221,7 @@ p <- SensorPiB %>% ggplot(
 facet_labels <- c(
   expression(Light~(relative~values)),
   expression(Internal~relative~humidity~(percent)),
-  expression(Electricity~consumption~(Kw~h^-1)),
+  expression(Electricity~consumption~(Kwh~m^-1)),
   expression(Temperature~(~degree~C))
 )
   
